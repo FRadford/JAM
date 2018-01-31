@@ -8,3 +8,6 @@ data = " ".join(sys.argv[1:])
 with Client(HOST, PORT) as client:
     client.send_msg(data)
     print(client.recv_msg())
+
+    client.send_msg(data)
+    print(client.recv_msg())

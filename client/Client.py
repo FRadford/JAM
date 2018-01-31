@@ -10,23 +10,27 @@ class Client(object):
         self.host = host
         self.port = port
 
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock = socket.socket()
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.sock.close()
+        self.close()
 
     def get_connection(self):
-        try:
-            self.sock.connect((self.host, self.port))
-        except Exception as e:
-            print(e)
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.sock.connect((self.host, self.port))
 
     def send_msg(self, msg):
         self.get_connection()
         self.sock.sendall(bytes(msg, "utf-8"))
 
     def recv_msg(self):
-        return str(self.sock.recv(1024), "utf-8")
+        response = str(self.sock.recv(1024), "utf-8")
+        self.close()
+
+        return response
+
+    def close(self):
+        self.sock.close()

@@ -1,7 +1,7 @@
 import socket
 
 
-class Client(object):
+class UDPClient(object):
     """
     Connect to server, send/receive data
     """
@@ -10,7 +10,8 @@ class Client(object):
         self.host = host
         self.port = port
 
-        self.sock = socket.socket()
+        self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.sock.bind(("localhost", 0))
 
     def __enter__(self):
         return self
@@ -18,19 +19,20 @@ class Client(object):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
-    def get_connection(self):
-        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.sock.connect((self.host, self.port))
-
     def send_msg(self, msg):
-        self.get_connection()
-        self.sock.sendall(bytes(msg, "utf-8"))
+        self.sock.sendto(bytes(msg, "utf-8"), (self.host, self.port))
 
-    def recv_msg(self):
-        response = str(self.sock.recv(1024), "utf-8")
-        self.close()
+    def receive_single(self):
+        return str(self.sock.recv(1024), "utf-8")
 
-        return response
+    def receive_forever(self):
+        """
+        Yields data received from server. To be run in separate daemon thread
+
+        :return: Iterator[str]
+        """
+        while True:
+            print(str(self.sock.recv(1024), "utf-8"))
 
     def close(self):
         self.sock.close()

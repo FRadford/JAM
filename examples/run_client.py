@@ -1,13 +1,13 @@
-import sys
+import threading
 
-from client.Client import Client
+from client.Client import UDPClient
 
 HOST, PORT = "localhost", 9999
-data = " ".join(sys.argv[1:])
 
-with Client(HOST, PORT) as client:
-    client.send_msg(data)
-    print(client.recv_msg())
+with UDPClient(HOST, PORT) as client:
+    receive_thread = threading.Thread(target=client.receive_forever)
+    receive_thread.daemon = True
+    receive_thread.start()
 
-    client.send_msg(data)
-    print(client.recv_msg())
+    while True:
+        client.send_msg(input("=> "))

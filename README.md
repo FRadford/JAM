@@ -1,2 +1,2 @@
 # JAM
-Just another messenger with end to end encryption(eventually)
+Just another messenger with end to end encryption (eventually)

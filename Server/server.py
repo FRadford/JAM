@@ -4,7 +4,7 @@ import threading
 
 class ThreadedUDPHandler(socketserver.BaseRequestHandler):
     """
-    Handle client Connections
+    Handle Client Connections
     """
 
     def __init__(self, request, client_address, server):
@@ -15,11 +15,14 @@ class ThreadedUDPHandler(socketserver.BaseRequestHandler):
     def handle(self):
         data = self.request[0].strip()
         socket = self.request[1]
-        print(f"{self.client_address}: {threading.current_thread().getName()} wrote:")
-        print(data)
 
-        for client in self.server.client_list:
-            socket.sendto(data, client)
+        if data != b"New Client":
+            print(f"{self.client_address}: {threading.current_thread().getName()} wrote:")
+            print(data)
+
+            for client in self.server.client_list:
+                if client != self.client_address:
+                    socket.sendto(data, client)
 
 
 class ThreadedUDPServer(socketserver.ThreadingMixIn, socketserver.UDPServer):

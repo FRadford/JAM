@@ -65,8 +65,3 @@ class PrimeHelper(object):
             data = pickle.load(file)
             self._prime = data["prime"]
             self._root = data["root"]
-
-
-if __name__ == "__main__":
-    prime = PrimeHelper("prime.dmp", 4096)
-    prime.export(prime=prime.prime, root=prime.root)

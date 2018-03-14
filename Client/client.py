@@ -11,6 +11,8 @@ from Cryptodome.Util import Padding
 from Util.prime_helper import PrimeHelper
 
 
+# TODO: Make sure to replace prime.dmp with larger prime
+
 class UDPClient(object):
     """
     Connect to Server, send/receive data

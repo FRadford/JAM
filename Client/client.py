@@ -68,6 +68,8 @@ class UDPClient(object):
         Facilitates both sides of a basic Diffie-Hellman key exchange and generates a shared secret, the hash of this
         secret is returned to be used as a key for the cipher
         """
+
+        # TODO: Fix key exchange. Probably by keeping a key for every other user.
         if originator:
             timeout = 0
             secret = randrange(1, self.helper.prime)  # Random integer between 1 and prime - 1: to be kept secret

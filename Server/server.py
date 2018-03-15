@@ -11,7 +11,7 @@ class ThreadedUDPServer(socketserver.ThreadingMixIn, socketserver.UDPServer):
 
     def __init__(self, server_address: tuple, request_handler_class: Type[socketserver.BaseRequestHandler]):
         super(ThreadedUDPServer, self).__init__(server_address, request_handler_class)
-        self.client_list = []
+        self.client_list = {}
 
 
 class ThreadedUDPHandler(socketserver.BaseRequestHandler):
@@ -21,7 +21,7 @@ class ThreadedUDPHandler(socketserver.BaseRequestHandler):
 
     def __init__(self, request: tuple, client_address: str, dispatcher: ThreadedUDPServer):
         if client_address not in dispatcher.client_list:  # Add new clients to the server client list
-            dispatcher.client_list.append(client_address)
+            dispatcher.client_list[client_address] = False
         super(ThreadedUDPHandler, self).__init__(request, client_address, dispatcher)
 
     def handle(self):
@@ -35,9 +35,19 @@ class ThreadedUDPHandler(socketserver.BaseRequestHandler):
             print(f"{self.client_address}: {threading.current_thread().getName()} wrote:")
             print(data)
 
-            for client in self.server.client_list:
-                if client != self.client_address:
-                    socket.sendto(data, client)
+            if data == b"Key Exchange Accepted":
+                for client, flag in self.server.client_list.items():
+                    if flag:
+                        socket.sendto(data, client)
+                        self.server.client_list[client] = False
+            else:
+                if data == b"Request Key Exchange":
+                    self.server.client_list[self.client_address] = True
+
+                for client in self.server.client_list:
+                    if client != self.client_address:
+                        socket.sendto(data, client)
+
 
 if __name__ == "__main__":
     HOST, PORT = "localhost", 9999

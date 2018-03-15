@@ -13,6 +13,7 @@ class PrimeHelper(object):
         self.n_bits = n_bits
         self.filename = filename
 
+        # "Private" variables set by properties
         self._prime = None
         self._root = None
 
@@ -36,32 +37,52 @@ class PrimeHelper(object):
         return self._root
 
     def new_prime(self, n_bits=None):
+        """
+        Helper to generate a new prime and reset root so that it will be calculated on the next access
+        """
         if n_bits is not None:
             self.n_bits = n_bits
         self._prime = self._generate_prime()
         self._root = None
 
-    # Generate new prime of n_bits specified on object
     def _generate_prime(self) -> int:
+        """
+        Helper function to generate a prime number from the instance variable n_bits, raises an error if this is not
+        set. n_bits is either set when an instance is initialized or when a prime is loaded from binary data.
+        """
         if self.n_bits is None:
             raise ValueError("n_bits is not specified, cannot generate prime. Either specify n_bits or use read "
                              "function to import prime from file")
         print(f"Generating prime with {self.n_bits} bits...")
         return number.getPrime(self.n_bits)
 
-    # Generate smallest primitive root modulo n where n is the prime specified on the object
     def _generate_root(self) -> int:
+        """
+        Helper function to calculate the smallest primitive root modulo n where n is the prime specified on the instance
+        """
         print(f"Calculating smallest primitive root modulo n where n = {self._prime}")
         return primitive_root(self._prime)
 
-    # Write pickled data to file specified on object
     def export(self, **kwargs):
+        """
+        Pickle and write data to file specified on the instance
+
+        To be properly loaded back kwargs must contain at least the _prime and _root variables under the keys 'prime'
+        and 'root' respectively
+        """
         with open(self.filename, mode="wb") as file:
             pickle.dump(kwargs, file)
 
-    # Returns un-pickled data from file specified on object
     def read(self):
+        """
+        Un-Pickle data saved in file and load instance variables
+
+        Pickled data must be a dictionary with keys "prime" and "root"
+        """
         with open(self.filename, mode="rb") as file:
             data = pickle.load(file)
-            self._prime = data["prime"]
-            self._root = data["root"]
+            try:
+                self._prime = data["prime"]
+                self._root = data["root"]
+            except AttributeError:
+                raise AttributeError("File must contain a dictionary with at least keys \"prime\" and \"root\"")

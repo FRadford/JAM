@@ -39,7 +39,6 @@ class ThreadedUDPHandler(socketserver.BaseRequestHandler):
                 if client != self.client_address:
                     socket.sendto(data, client)
 
-
 if __name__ == "__main__":
     HOST, PORT = "localhost", 9999
 

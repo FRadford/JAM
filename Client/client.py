@@ -37,7 +37,7 @@ class UDPClient(object):
 
         self.cipher = None
         self.key = None
-
+        
         # send message to signal server to add client to client list
         self.send_message("New Client")
 

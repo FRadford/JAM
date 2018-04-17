@@ -11,7 +11,7 @@ from Cryptodome.Util import Padding
 from Util.prime_helper import PrimeHelper
 
 
-# TODO: Make sure to replace prime.dmp with larger prime
+# TODO: Make sure to replace prime.bin with larger prime
 
 class UDPClient(object):
     """
@@ -27,7 +27,7 @@ class UDPClient(object):
         self.sock.bind(("localhost", 0))  # bind socket to local host and any available port
 
         # read prime for use in key exchange
-        self.prime_dump = "data/prime.dmp"
+        self.prime_dump = "data/prime.bin"
         self.helper = PrimeHelper(self.prime_dump)
         self.helper.read()
 
@@ -63,6 +63,10 @@ class UDPClient(object):
         """
         return num.to_bytes((num.bit_length() + 7) // 8, "big")
 
+    @staticmethod
+    def hash_password(password):
+        return SHA3_256.new(password)
+
     def dh_key_exchange(self, originator: bool = True) -> SHA3_256:
         """
         Facilitates both sides of a basic Diffie-Hellman key exchange and generates a shared secret, the hash of this
@@ -86,9 +90,7 @@ class UDPClient(object):
 
                 timeout += 1
 
-            self.send_message(str(self.helper.prime))
-            self.send_message(str(self.helper.root))
-            self.send_message(str(public))  # Send public information
+            self.send_tuple((str(self.helper.prime), str(self.helper.root), str(public)))  # Send public information
 
             response = int(self.receive_single())
 
@@ -161,7 +163,11 @@ class UDPClient(object):
         """
         Encrypts and sends message if key is established or begins key exchange if no key exists
         """
-        if self.key is not None:
+        if msg.startswith("~"):
+            self.send_message(msg[1:])
+            if msg == "~Register" or msg == "~Login":
+                self.login()
+        elif self.key is not None:
             self.send_tuple(self.encrypt(self.key, bytes(msg, "utf-8")))
         else:
             # Recursively attempts to conduct key exchange and send message
@@ -170,7 +176,24 @@ class UDPClient(object):
                 self.send_tuple(self.encrypt(self.key, bytes(msg, "utf-8")))
             except TimeoutError:
                 print(f"Connection timed out, resending message '{msg}'...")
-                self.send_encrypted_message(msg)
+                # self.send_encrypted_message(msg)
+
+    @staticmethod
+    def prompt():
+        print("Enter Username")
+        username = input("=> ")
+
+        print("Enter Password")
+        password = input("=> ")
+
+        return username, password
+
+    def login(self):
+        username, password = self.prompt()
+        hashed = SHA3_256.new(bytes(password, "utf-8")).hexdigest()
+
+        self.send_encrypted_message(username)
+        self.send_encrypted_message(hashed)
 
     def format(self, msg: bytes) -> str:
         """

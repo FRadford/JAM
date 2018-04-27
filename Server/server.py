@@ -7,7 +7,7 @@ import yaml
 from Cryptodome.Hash import SHA3_256
 from Cryptodome.Random.random import randrange, getrandbits
 
-from MessageTypes.message import EncryptedMessage
+from MessageTypes.message import EncryptedMessage, KeyExchangeMessage, LoginMessage, RegisterMessage, Message
 from Util.prime_helper import PrimeHelper
 
 
@@ -100,26 +100,37 @@ class ThreadedUDPHandler(socketserver.BaseRequestHandler):
         data = self.decode_yaml(self.request[0].strip())
         client = self.server.client_list[self.client_address]
 
-        if type(data) is tuple:
-            if data[0] == "Request Key Exchange":
-                client.dh_key_exchange(*[int(x) for x in data[1:]])
-            elif type(data[0]) is EncryptedMessage:
-                if data[0].decrypt() == "register":
-                    client.register(data[1].decrypt(), data[2].decrypt())
-                elif data[0].decrypt() == "login":
-                    client.login(data[1].decrypt(), data[2].decrypt())
+        if data.recipient == "root":
+            if type(data) is KeyExchangeMessage:
+                client.dh_key_exchange(data.prime, data.root, data.public)
+            elif type(data) is RegisterMessage:
+                client.register(data.username.decrypt(), data.password.decrypt())
+            elif type(data) is LoginMessage:
+                client.login(data.username.decrypt(), data.password.decrypt())
+            elif type(data) is EncryptedMessage:
+                print(data.decrypt(), data.recipient)
+        else:
+            recipient = None
+            for address, user in self.server.client_list.items():
+                if user.username == data.recipient:
+                    recipient = user
 
-    def send_message(self, msg: str):
+            self.send_yaml(data, recipient)
+
+    def send_yaml(self, obj: object, recipient):
+        self.send_message(yaml.dump(obj), recipient)
+
+    def send_message(self, msg: str, recipient):
         """
         Sends encoded message to client
         """
-        self.request[1].sendto(bytes(msg, "utf-8"), self.client_address)
+        self.request[1].sendto(bytes(msg, "utf-8"), recipient.ip_address)
 
-    def send_encrypted_message(self, msg: str):
+    def send_encrypted_message(self, msg: str, recipient):
         """
         Encrypts and sends message if key is established or begins key exchange if no key exists
         """
-        self.send_message(yaml.dump(EncryptedMessage(self.server.client_list[self.client_address].key, msg)))
+        self.send_message(yaml.dump(EncryptedMessage(recipient.key, msg)), recipient)
 
 
 class ClientInfo(object):
@@ -139,13 +150,13 @@ class ClientInfo(object):
 
         self.handler = handler
 
-    def dh_key_exchange(self, prime, root, received_public):
+    def dh_key_exchange(self, prime: int, root: int, received_public: int):
         secret = randrange(1, prime)  # Random integer between 1 and prime - 1: to be kept secret
 
         public = (root ** secret) % prime  # Public part, shared in the clear
 
-        self.handler.send_message("Key Exchange Accepted")
-        self.handler.send_message(str(public))  # Send public information
+        self.handler.send_yaml(KeyExchangeMessage("Key Exchange Accepted"), self)
+        self.handler.send_yaml(Message(public), self)  # Send public information
 
         # Calculate and return shared secret
         self.key = SHA3_256.new(self.handler.int_to_bytes((received_public ** secret) % self.helper.prime)).digest()
@@ -158,11 +169,11 @@ class ClientInfo(object):
 
         try:
             cursor.execute(statement, (username, SHA3_256.new(bytes(password + salt, "utf-8")).hexdigest(), salt))
-            self.handler.send_encrypted_message("Successfully Registered.")
+            self.handler.send_encrypted_message("Successfully Registered.", self)
 
             self.username = username
         except sqlite3.IntegrityError:
-            self.handler.send_encrypted_message("Username Already Registered.")
+            self.handler.send_encrypted_message("Username Already Registered.", self)
 
         self.handler.server.database.commit()
         self.handler.server.database.close()
@@ -170,17 +181,17 @@ class ClientInfo(object):
 
     def login(self, username, password):
         cursor = self.handler.server.database.cursor()
-        username = (username,)
+        username = username
 
         saved_user, saved_pass, salt = cursor.execute("SELECT username, password, salt FROM users WHERE username=?",
-                                                      username).fetchone()
+                                                      (username,)).fetchone()
 
         if SHA3_256.new(bytes(password + salt, "utf-8")).hexdigest() == saved_pass:
-            self.handler.send_encrypted_message("Login Successful.")
+            self.handler.send_encrypted_message("Login Successful.", self)
 
             self.username = username
         else:
-            self.handler.send_encrypted_message("Login Failed.")
+            self.handler.send_encrypted_message("Login Failed.", self)
 
         self.handler.server.database.close()
         self.handler.server.database = None

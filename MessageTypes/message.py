@@ -4,21 +4,38 @@ from Cryptodome.Util import Padding
 
 class Message(object):
     """
-    Stores message information, ready for pickling
+    Stores message information, ready for encoding
     """
 
-    def __init__(self, text, recipient=None):
+    def __init__(self, text: object = None, recipient: str = None, sender: str = None):
         self.text = text
         self.recipient = recipient
+        self.sender = sender
+
+
+class KeyExchangeMessage(Message):
+    """
+    Stores Key Exchange specific information, ready for encoding
+    """
+
+    def __init__(self, request: str, prime: int = None, root: int = None, public: int = None, recipient: str = None,
+                 sender: str = None):
+        super(KeyExchangeMessage, self).__init__(recipient=recipient, sender=sender)
+
+        self.request = request
+        self.prime = prime
+        self.root = root
+        self.public = public
 
 
 class EncryptedMessage(Message):
     """
-    Encrypted message information, ready for pickling
+    Encrypted message information, ready for encoding
     """
 
-    def __init__(self, key: bytes, text: str, tag: bytes = None, nonce: bytes = None, recipient=None):
-        super(EncryptedMessage, self).__init__(text, recipient)
+    def __init__(self, key: bytes, text: str, tag: bytes = None, nonce: bytes = None, recipient: str = None,
+                 sender: str = None):
+        super(EncryptedMessage, self).__init__(text, recipient, sender)
         self.key = key
         self.tag = tag
 
@@ -64,3 +81,16 @@ class EncryptedMessage(Message):
             raise
 
         return str(plaintext, "utf-8")
+
+
+class LoginMessage(Message):
+    def __init__(self, key: bytes, username: str, password: str, recipient: str = "root", sender: str = None):
+        super(LoginMessage, self).__init__(recipient=recipient, sender=sender)
+
+        self.username = EncryptedMessage(key, username)
+        self.password = EncryptedMessage(key, password)
+
+
+class RegisterMessage(LoginMessage):
+    def __init__(self, key: bytes, username: str, password: str, recipient: str = "root", sender: str = None):
+        super(RegisterMessage, self).__init__(key, username, password, recipient, sender)
